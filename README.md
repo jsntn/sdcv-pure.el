@@ -12,18 +12,23 @@ It can be installed using [straight.el](https://github.com/radian-software/strai
 (use-package sdcv
   :straight (:host github :repo "jsntn/sdcv.el")
   :config
-  (defvar sdcv-simple-dict
-    `("~/.stardict/dic/stardict-lazyworm-ec-2.4.2" "lazyworm-ec")
-    "Dictionary to search")
-  (defvar sdcv-multiple-dicts
-    `(("~/.stardict/dic/stardict-lazyworm-ec-2.4.2" "lazyworm-ec")
-      ("~/.stardict/dic/stardict-langdao-ce-gb-2.4.2" "langdao-ce-gb")
-      ("~/.stardict/dic/stardict-langdao-ec-gb-2.4.2" "langdao-ec-gb")
-      ("~/.stardict/dic/stardict-cedict-gb-2.4.2" "cedict-gb")
-      ("~/.stardict/dic/stardict-DrEye4in1-2.4.2" "DrEye4in1"))
-    "List of dictionaries to search.")
-  (global-set-key (kbd "C-c d") 'sdcv-simple-definition)
-  (global-set-key (kbd "C-c D") 'sdcv-complete-definition))
+
+  ;; set your dictionaries, see example below,
+  ;; (defvar sdcv-simple-dict
+  ;;   `("~/.stardict/dic/stardict-lazyworm-ec-2.4.2" "lazyworm-ec")
+  ;;   "Dictionary to search")
+  ;; (defvar sdcv-multiple-dicts
+  ;;   `(("~/.stardict/dic/stardict-lazyworm-ec-2.4.2" "lazyworm-ec")
+  ;;     ("~/.stardict/dic/stardict-langdao-ce-gb-2.4.2" "langdao-ce-gb")
+  ;;     ("~/.stardict/dic/stardict-langdao-ec-gb-2.4.2" "langdao-ec-gb")
+  ;;     ("~/.stardict/dic/stardict-cedict-gb-2.4.2" "cedict-gb")
+  ;;     ("~/.stardict/dic/stardict-DrEye4in1-2.4.2" "DrEye4in1"))
+  ;;   "List of dictionaries to search.")
+
+  ;; keybinding example,
+  ;; (global-set-key (kbd "C-c d") 'sdcv-simple-definition)
+  ;; (global-set-key (kbd "C-c D") 'sdcv-complete-definition)
+  )
 ```
 
 ## Usage
