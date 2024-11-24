@@ -32,14 +32,14 @@
 ;; Usage,
 ;;
 ;; (defvar sdcv-simple-dict
-;;   `("~/.stardict/dic/stardict-lazyworm-ec-2.4.2" "lazyworm-ec")
+;;   `("~/.stardict/dic/stardict-lazyworm-ec-2.4.2")
 ;;   "Dictionary to search")
 ;; (defvar sdcv-multiple-dicts
-;;   `(("~/.stardict/dic/stardict-lazyworm-ec-2.4.2" "lazyworm-ec")
-;;     ("~/.stardict/dic/stardict-langdao-ce-gb-2.4.2" "langdao-ce-gb")
-;;     ("~/.stardict/dic/stardict-langdao-ec-gb-2.4.2" "langdao-ec-gb")
-;;     ("~/.stardict/dic/stardict-cedict-gb-2.4.2" "cedict-gb")
-;;     ("~/.stardict/dic/stardict-DrEye4in1-2.4.2" "DrEye4in1"))
+;;   `(("~/.stardict/dic/stardict-lazyworm-ec-2.4.2")
+;;     ("~/.stardict/dic/stardict-langdao-ce-gb-2.4.2")
+;;     ("~/.stardict/dic/stardict-langdao-ec-gb-2.4.2")
+;;     ("~/.stardict/dic/stardict-cedict-gb-2.4.2")
+;;     ("~/.stardict/dic/stardict-DrEye4in1-2.4.2"))
 ;;   "List of dictionaries to search.")
 
 ;; (global-set-key (kbd "C-c d") 'sdcv-simple-definition)
@@ -49,6 +49,7 @@
 
 
 (require 'stardict)
+(require 'popup)
 
 (defvar sdcv-result-buffer-name "*SDCV*"
   "The buffer of my dictionary lookup.")
@@ -59,12 +60,12 @@
 (defun sdcv-prompt-input ()
   "Prompt input for translate."
   (let* ((word (if mark-active
-                   (buffer-substring-no-properties (region-beginning)
-                                                   (region-end))
-                 (thing-at-point 'word))))
+		   (buffer-substring-no-properties (region-beginning)
+						   (region-end))
+		 (thing-at-point 'word))))
     (setq word (read-string (format "Word (%s): " (or word ""))
-                            nil nil
-                            word))
+			    nil nil
+			    word))
     (if word (downcase word))))
 
 (defun sdcv-quit-window ()
@@ -85,7 +86,9 @@
      (unless (featurep 'stardict) (require 'stardict))
      (unless ,cache
        (setq ,cache
-             (stardict-open (nth 0 ,dict) (nth 1 ,dict) t)))
+	     (stardict-open (nth 0 ,dict)
+			    (sdcv-get-dict-name (nth 0 ,dict))
+			    t)))
      (stardict-lookup ,cache word)))
 
 (defun sdcv-find-ifo-file (dict-path)
@@ -108,6 +111,20 @@ Searches for the .ifo file dynamically in the dictionary folder."
 	  (setq bookname (match-string 1)))))
     bookname))
 
+(defun sdcv-find-dict-file (dict-path)
+  "Find the .dict.dz file in the DICT-PATH.
+Returns the full path of the .dict.dz file or nil if not found."
+  (let ((dict.dz-file (car (directory-files dict-path t "\\.dict.dz$"))))
+    (when (and dict.dz-file (file-exists-p dict.dz-file))
+      dict.dz-file)))
+
+(defun sdcv-get-dict-name (dict-path)
+  "Retrieve the dict-name based on the .dict.dz file in DICT-PATH."
+  (let ((dict.dz-file (sdcv-find-dict-file dict-path))
+	(dict-name nil))
+    (string-remove-suffix ".dict.dz"
+			  (file-name-nondirectory dict.dz-file))))
+
 (defun sdcv-search-all (word)
   "Search WORD in all dictionaries and return concatenated results.
 Uses the bookname from the dictionary's .ifo file as the dictionary name.
@@ -117,12 +134,11 @@ Returns nil if no results are found."
 	       (mapcar
 		(lambda (dict)
 		  (let* ((dict-path (nth 0 dict))
-			 (dict-name (nth 1 dict))
+			 (dict-name (sdcv-get-dict-name dict-path))
 			 (dict-name-display (or (sdcv-get-bookname dict-path)
 						"Unknown Dictionary")) ; fallback if bookname is missing
 			 (cache (sdcv-get-cache dict-path dict-name))
 			 (result (stardict-lookup cache word)))
-		    (message "dict-path: %s" dict-path)
 		    (when result
 		      (format "--> [%s]\n\n%s" dict-name-display result))))
 		sdcv-multiple-dicts))))
@@ -160,7 +176,7 @@ Returns nil if no results are found."
   "Show dictionary lookup in popup."
   (interactive)
   (let* ((word (sdcv-prompt-input))
-         (def (sdcv-search-detail word sdcv-simple-dict sdcv-simple-dict-cache)))
+	 (def (sdcv-search-detail word sdcv-simple-dict sdcv-simple-dict-cache)))
     (when def
       (unless (featurep 'popup) (require 'popup))
       (popup-tip def))))
