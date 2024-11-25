@@ -54,6 +54,25 @@
 (defvar sdcv-result-buffer-name "*SDCV*"
   "The buffer of my dictionary lookup.")
 
+(defvar sdcv-mode-font-lock-keywords
+  '(;; Dictionary name
+    ("^-->\\(.*\\)\n-" . (1 font-lock-type-face))
+    ;; Search word
+    ("^-->\\(.*\\)[ \t\n]*" . (1 font-lock-function-name-face))
+    ;; Serial number
+    ("\\(^[0-9] \\|[0-9]+:\\|[0-9]+\\.\\)" . (1 font-lock-constant-face))
+    ;; Type name
+    ("^<<\\([^>]*\\)>>$" . (1 font-lock-comment-face))
+    ;; Phonetic symbol
+    ("^/\\([^>]*\\)/$" . (1 font-lock-string-face))
+    ("^\\[\\([^]]*\\)\\]$" . (1 font-lock-string-face)))
+  "Expressions to highlight in `sdcv-mode'.")
+
+(define-derived-mode sdcv-mode nil "SDCV"
+  "Major mode for displaying StarDict dictionary results."
+  (setq font-lock-defaults '(sdcv-mode-font-lock-keywords t))
+  (setq buffer-read-only t))
+
 (defvar sdcv-simple-dict-cache nil "Internal variable.")
 (defvar sdcv-multiple-dicts-cache nil "Internal variable.")
 
@@ -155,7 +174,7 @@ Returns nil if no results are found."
 	(let ((buf (get-buffer-create sdcv-result-buffer-name))
 	      win)
 	  (with-current-buffer buf
-	    (special-mode) ; See https://github.com/redguardtoo/emacs.d/pull/1073
+	    (sdcv-mode) ; See https://github.com/redguardtoo/emacs.d/pull/1073
 	    (setq buffer-read-only nil)
 	    (erase-buffer)
 	    (insert defs)
