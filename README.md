@@ -1,4 +1,4 @@
-# sdcv.el
+# sdcv-pure.el
 
 This is an alternative Elisp implementation of `sdcv.el` that does not require the `sdcv` CLI dependency. It is based on [Chen Bin](https://github.com/redguardtoo)'s code from [here](https://github.com/redguardtoo/emacs.d/blob/be57e47c974015bb4623b1d32f41fed5b126d229/lisp/init-dictionary.el).
 
@@ -9,8 +9,8 @@ This version includes updates to support lookups across multiple dictionaries.
 It can be installed using [straight.el](https://github.com/radian-software/straight.el). To install, add the following to your Emacs configuration file:
 
 ```emacs
-(use-package sdcv
-  :straight (:host github :repo "jsntn/sdcv.el")
+(use-package sdcv-pure
+  :straight (:host github :repo "jsntn/sdcv-pure.el")
   :config
 
   ;; set your dictionaries, see example below,
