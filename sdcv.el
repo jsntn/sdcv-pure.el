@@ -1,10 +1,10 @@
-;;; sdcv.el --- Elisp version of sdcv -*- lexical-binding: t; -*-
+;;; sdcv-pure.el --- Elisp version of sdcv -*- lexical-binding: t; -*-
 
 ;; Author: Jason Tian <hi@jsntn.com>
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "27.1"))
 ;; Keywords: dictionary
-;; URL: https://github.com/jsntn/sdcv.el
+;; URL: https://github.com/jsntn/sdcv-pure.el
 
 ;; This file is *NOT* part of GNU Emacs
 
@@ -201,5 +201,5 @@ Returns nil if no results are found."
       (popup-tip def))))
 
 
-(provide 'sdcv)
-;;; sdcv.el ends here
+(provide 'sdcv-pure)
+;;; sdcv-pure.el ends here
