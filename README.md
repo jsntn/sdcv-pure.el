@@ -38,6 +38,16 @@ Use,
 - `sdcv-simple-definition` for simple popup lookup
 - `sdcv-complete-definition` for the multiple dictionaries lookup
 
+### Navigation in sdcv-mode
+
+When using `sdcv-complete-definition`, you can quickly jump between different dictionaries in the results buffer using the following keybindings:
+
+- `C-f` - Jump to the next dictionary entry
+- `C-k` - Jump to the previous dictionary entry
+- `q` - Quit the sdcv window
+
+These keybindings are also available in Evil normal mode if you use Evil.
+
 ## License
 
 `sdcv.el` is licensed under the GPL 3.0 License. See LICENSE for details.
