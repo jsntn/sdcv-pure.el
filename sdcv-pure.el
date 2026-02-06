@@ -212,11 +212,11 @@ Returns nil if no results are found."
 	    (goto-char (point-min))
 
             (local-set-key (kbd "q") 'sdcv-quit-window)
-            (local-set-key (kbd "C-f") 'sdcv-jump-to-next-dict)
+            (local-set-key (kbd "C-j") 'sdcv-jump-to-next-dict)
             (local-set-key (kbd "C-k") 'sdcv-jump-to-prev-dict)
             (when (and (boundp 'evil-mode) evil-mode)
               (evil-local-set-key 'normal (kbd "q") 'sdcv-quit-window)
-              (evil-local-set-key 'normal (kbd "C-f") 'sdcv-jump-to-next-dict)
+              (evil-local-set-key 'normal (kbd "C-j") 'sdcv-jump-to-next-dict)
               (evil-local-set-key 'normal (kbd "C-k") 'sdcv-jump-to-prev-dict)))
 
           (unless (eq (current-buffer) buf)
