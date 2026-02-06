@@ -42,7 +42,7 @@ Use,
 
 When using `sdcv-complete-definition`, you can quickly jump between different dictionaries in the results buffer using the following keybindings:
 
-- `C-f` - Jump to the next dictionary entry
+- `C-j` - Jump to the next dictionary entry
 - `C-k` - Jump to the previous dictionary entry
 - `q` - Quit the sdcv window
 
