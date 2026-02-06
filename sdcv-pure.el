@@ -92,6 +92,37 @@
   (interactive)
   (quit-window t))
 
+(defun sdcv-jump-to-next-dict ()
+  "Jump to the next dictionary entry in the buffer."
+  (interactive)
+  (let ((start-pos (point)))
+    ;; If we're on a dictionary line, move forward first
+    (when (looking-at "^--> \\[")
+      (forward-line 1))
+    ;; Search for the next dictionary marker
+    (if (re-search-forward "^--> \\[" nil t)
+        (progn
+          (beginning-of-line)
+          (recenter 0)) ; Scroll to show dictionary name at top
+      ;; If not found, stay at original position
+      (goto-char start-pos)
+      (message "No more dictionaries below"))))
+
+(defun sdcv-jump-to-prev-dict ()
+  "Jump to the previous dictionary entry in the buffer."
+  (interactive)
+  (let ((start-pos (point)))
+    ;; Move to beginning of line to avoid matching current line
+    (beginning-of-line)
+    ;; Search backwards for previous dictionary marker
+    (if (re-search-backward "^--> \\[" nil t)
+        (progn
+          (beginning-of-line)
+          (recenter 0)) ; Scroll to show dictionary name at top
+      ;; If not found, stay at original position
+      (goto-char start-pos)
+      (message "No more dictionaries above"))))
+
 (defun sdcv-get-cache (dict-path dict-name)
   "Retrieve or initialize the cache for DICT-PATH and DICT-NAME."
   (or (cdr (assoc dict-path sdcv-multiple-dicts-cache))
@@ -181,8 +212,12 @@ Returns nil if no results are found."
 	    (goto-char (point-min))
 
             (local-set-key (kbd "q") 'sdcv-quit-window)
+            (local-set-key (kbd "C-f") 'sdcv-jump-to-next-dict)
+            (local-set-key (kbd "C-k") 'sdcv-jump-to-prev-dict)
             (when (and (boundp 'evil-mode) evil-mode)
-              (evil-local-set-key 'normal (kbd "q") 'sdcv-quit-window)))
+              (evil-local-set-key 'normal (kbd "q") 'sdcv-quit-window)
+              (evil-local-set-key 'normal (kbd "C-f") 'sdcv-jump-to-next-dict)
+              (evil-local-set-key 'normal (kbd "C-k") 'sdcv-jump-to-prev-dict)))
 
           (unless (eq (current-buffer) buf)
             (if (null (setq win (get-buffer-window buf)))
