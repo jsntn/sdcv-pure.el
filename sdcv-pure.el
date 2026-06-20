@@ -1,7 +1,7 @@
 ;;; sdcv-pure.el --- Elisp version of sdcv -*- lexical-binding: t; -*-
 
 ;; Author: Jason Tian <hi@jsntn.com>
-;; Version: 0.1.0
+;; Version: 0.1.1
 ;; Package-Requires: ((emacs "27.1"))
 ;; Keywords: dictionary
 ;; URL: https://github.com/jsntn/sdcv-pure.el
@@ -72,6 +72,15 @@
   "Major mode for displaying StarDict dictionary results."
   (setq font-lock-defaults '(sdcv-mode-font-lock-keywords t))
   (setq buffer-read-only t))
+
+(defvar sdcv-simple-dict nil
+  "Single dictionary path for simple lookup.
+Example: `(\"~/.stardict/dic/stardict-lazyworm-ec-2.4.2\")")
+
+(defvar sdcv-multiple-dicts nil
+  "List of dictionary paths for multi-dict lookup.
+Example: `((\"~/.stardict/dic/stardict-lazyworm-ec-2.4.2\")
+           (\"~/.stardict/dic/stardict-langdao-ec-gb-2.4.2\"))")
 
 (defvar sdcv-simple-dict-cache nil "Internal variable.")
 (defvar sdcv-multiple-dicts-cache nil "Internal variable.")
@@ -226,14 +235,89 @@ Returns nil if no results are found."
       (message "No results found.") ; inform the user if no results are found
       )))
 
+(defun sdcv--lookup-word-in-dict (word dict-entry)
+  "Look up WORD in a single DICT-ENTRY from `sdcv-multiple-dicts'.
+Return (display-name . definition) or nil."
+  (let ((dict-path (nth 0 dict-entry)))
+    (when (file-directory-p dict-path)
+      (condition-case nil
+          (let* ((dict-name (sdcv-get-dict-name dict-path))
+                 (display-name (or (sdcv-get-bookname dict-path) dict-name))
+                 (cache (sdcv-get-cache dict-path dict-name))
+                 (def (stardict-lookup cache word)))
+            (when def (cons display-name def)))
+        (error nil)))))
+
 (defun sdcv-simple-definition ()
-  "Show dictionary lookup in popup."
+  "Show dictionary lookup in popup.  C-j/C-k cycles through dictionaries."
   (interactive)
   (let* ((word (sdcv-prompt-input))
-	 (def (sdcv-search-detail word sdcv-simple-dict sdcv-simple-dict-cache)))
-    (when def
-      (unless (featurep 'popup) (require 'popup))
-      (popup-tip def))))
+         (dicts (append (list sdcv-simple-dict)
+                       (cl-remove-if
+                        (lambda (d) (equal (nth 0 d) (nth 0 sdcv-simple-dict)))
+                        sdcv-multiple-dicts)))
+         (total (length dicts))
+         (index 0)
+         (cache (make-vector total nil))   ; cache looked-up results
+         (looked (make-vector total nil))  ; track which were looked up
+         (continue t)
+         tip result)
+    ;; Lookup first dict that has a result
+    (cl-block nil
+      (dotimes (i total)
+        (let ((r (sdcv--lookup-word-in-dict word (nth i dicts))))
+          (aset cache i r)
+          (aset looked i t)
+          (when r
+            (setq index i result r)
+            (cl-return)))))
+    (if (null result)
+        (message "No definition found for: %s" word)
+      ;; Show popup and enter cycling loop
+      (unwind-protect
+          (while continue
+            (let ((text (format "--> [%s]\n\n%s" (car result) (cdr result))))
+              (setq tip (popup-tip text :margin 1 :nowait t))
+              (let ((ev (read-event)))
+                (popup-delete tip)
+                (setq tip nil)
+                (cond
+                 ((eq ev ?\C-j)  ; next
+                  (if (<= total 1)
+                      (message "Only one dictionary available.")
+                    (let ((found nil) (tries 0))
+                      (while (and (not found) (< tries total))
+                        (setq index (mod (1+ index) total)
+                              tries (1+ tries))
+                        (unless (aref looked index)
+                          (aset cache index
+                                (sdcv--lookup-word-in-dict word (nth index dicts)))
+                          (aset looked index t))
+                        (when (aref cache index)
+                          (setq found t)))
+                      (if found
+                          (setq result (aref cache index))
+                        (message "No other dictionaries have this word.")))))
+                 ((eq ev ?\C-k)  ; prev
+                  (if (<= total 1)
+                      (message "Only one dictionary available.")
+                    (let ((found nil) (tries 0))
+                      (while (and (not found) (< tries total))
+                        (setq index (mod (1- index) total)
+                              tries (1+ tries))
+                        (unless (aref looked index)
+                          (aset cache index
+                                (sdcv--lookup-word-in-dict word (nth index dicts)))
+                          (aset looked index t))
+                        (when (aref cache index)
+                          (setq found t)))
+                      (if found
+                          (setq result (aref cache index))
+                        (message "No other dictionaries have this word.")))))
+                 (t
+                  (setq continue nil))))))
+        ;; cleanup
+        (when tip (popup-delete tip))))))
 
 
 (provide 'sdcv-pure)

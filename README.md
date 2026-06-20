@@ -35,10 +35,20 @@ It can be installed using [straight.el](https://github.com/radian-software/strai
 
 Use,
 
-- `sdcv-simple-definition` for simple popup lookup
-- `sdcv-complete-definition` for the multiple dictionaries lookup
+- `sdcv-simple-definition` for popup lookup with dictionary cycling
+- `sdcv-complete-definition` for the multiple dictionaries lookup in a buffer
 
-### Navigation in sdcv-mode
+### Popup Dictionary Cycling (sdcv-simple-definition)
+
+When using `sdcv-simple-definition`, the result is displayed as a popup overlay starting with `sdcv-simple-dict`. You can cycle through other dictionaries defined in `sdcv-multiple-dicts` using:
+
+- `C-j` - Show result from the next dictionary
+- `C-k` - Show result from the previous dictionary
+- Any other key - Dismiss the popup
+
+Dictionaries are looked up lazily — only when you navigate to them. Results are cached in memory so cycling back is instant.
+
+### Buffer Navigation (sdcv-complete-definition)
 
 When using `sdcv-complete-definition`, you can quickly jump between different dictionaries in the results buffer using the following keybindings:
 
