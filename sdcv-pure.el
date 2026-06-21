@@ -1,7 +1,7 @@
 ;;; sdcv-pure.el --- Elisp version of sdcv -*- lexical-binding: t; -*-
 
 ;; Author: Jason Tian <hi@jsntn.com>
-;; Version: 0.1.1
+;; Version: 0.1.2
 ;; Package-Requires: ((emacs "27.1"))
 ;; Keywords: dictionary
 ;; URL: https://github.com/jsntn/sdcv-pure.el
@@ -85,6 +85,21 @@ Example: `((\"~/.stardict/dic/stardict-lazyworm-ec-2.4.2\")
 (defvar sdcv-simple-dict-cache nil "Internal variable.")
 (defvar sdcv-multiple-dicts-cache nil "Internal variable.")
 
+(defvar sdcv-history-file nil
+  "File path to record lookup history, one word per line, newest first.
+When nil, no history is recorded.")
+
+(defun sdcv-record-history (word)
+  "Record WORD to `sdcv-history-file', deduplicating and putting it on top."
+  (when (and sdcv-history-file word (not (string-empty-p word)))
+    (let ((words (when (file-exists-p sdcv-history-file)
+                   (with-temp-buffer
+                     (insert-file-contents sdcv-history-file)
+                     (split-string (buffer-string) "\n" t)))))
+      (setq words (cons word (delete word words)))
+      (with-temp-file sdcv-history-file
+        (insert (mapconcat #'identity words "\n") "\n")))))
+
 (defun sdcv-prompt-input ()
   "Prompt input for translate."
   (let* ((word (if mark-active
@@ -94,7 +109,10 @@ Example: `((\"~/.stardict/dic/stardict-lazyworm-ec-2.4.2\")
     (setq word (read-string (format "Word (%s): " (or word ""))
 			    nil nil
 			    word))
-    (if word (downcase word))))
+    (when word
+      (setq word (downcase word))
+      (sdcv-record-history word))
+    word))
 
 (defun sdcv-quit-window ()
   "Quit window."
@@ -248,21 +266,14 @@ Return (display-name . definition) or nil."
             (when def (cons display-name def)))
         (error nil)))))
 
-(defun sdcv-simple-definition ()
-  "Show dictionary lookup in popup.  C-j/C-k cycles through dictionaries."
-  (interactive)
-  (let* ((word (sdcv-prompt-input))
-         (dicts (append (list sdcv-simple-dict)
-                       (cl-remove-if
-                        (lambda (d) (equal (nth 0 d) (nth 0 sdcv-simple-dict)))
-                        sdcv-multiple-dicts)))
-         (total (length dicts))
+(defun sdcv--popup-display (word dicts)
+  "Show WORD definition from DICTS in popup with C-j/C-k cycling and y to copy."
+  (let* ((total (length dicts))
          (index 0)
-         (cache (make-vector total nil))   ; cache looked-up results
-         (looked (make-vector total nil))  ; track which were looked up
+         (cache (make-vector total nil))
+         (looked (make-vector total nil))
          (continue t)
          tip result)
-    ;; Lookup first dict that has a result
     (cl-block nil
       (dotimes (i total)
         (let ((r (sdcv--lookup-word-in-dict word (nth i dicts))))
@@ -273,7 +284,6 @@ Return (display-name . definition) or nil."
             (cl-return)))))
     (if (null result)
         (message "No definition found for: %s" word)
-      ;; Show popup and enter cycling loop
       (unwind-protect
           (while continue
             (let ((text (format "--> [%s]\n\n%s" (car result) (cdr result))))
@@ -282,7 +292,7 @@ Return (display-name . definition) or nil."
                 (popup-delete tip)
                 (setq tip nil)
                 (cond
-                 ((eq ev ?\C-j)  ; next
+                 ((eq ev ?\C-j)
                   (if (<= total 1)
                       (message "Only one dictionary available.")
                     (let ((found nil) (tries 0))
@@ -298,7 +308,7 @@ Return (display-name . definition) or nil."
                       (if found
                           (setq result (aref cache index))
                         (message "No other dictionaries have this word.")))))
-                 ((eq ev ?\C-k)  ; prev
+                 ((eq ev ?\C-k)
                   (if (<= total 1)
                       (message "Only one dictionary available.")
                     (let ((found nil) (tries 0))
@@ -314,10 +324,37 @@ Return (display-name . definition) or nil."
                       (if found
                           (setq result (aref cache index))
                         (message "No other dictionaries have this word.")))))
+                 ((eq ev ?y)
+                  (kill-new (cdr result))
+                  (message "Definition copied."))
                  (t
                   (setq continue nil))))))
-        ;; cleanup
         (when tip (popup-delete tip))))))
+
+(defun sdcv-simple-definition ()
+  "Show dictionary lookup in popup.  C-j/C-k cycles through dictionaries."
+  (interactive)
+  (let* ((word (sdcv-prompt-input))
+         (dicts (append (list sdcv-simple-dict)
+                       (cl-remove-if
+                        (lambda (d) (equal (nth 0 d) (nth 0 sdcv-simple-dict)))
+                        sdcv-multiple-dicts))))
+    (sdcv--popup-display word dicts)))
+
+(defun sdcv-select-definition ()
+  "Prompt to select a dictionary from `sdcv-multiple-dicts', then lookup in popup."
+  (interactive)
+  (if (null sdcv-multiple-dicts)
+      (message "sdcv-multiple-dicts is not defined.")
+    (let* ((choices (mapcar (lambda (d)
+                             (cons (or (sdcv-get-bookname (nth 0 d))
+                                       (sdcv-get-dict-name (nth 0 d)))
+                                   d))
+                           sdcv-multiple-dicts))
+           (selected (completing-read "Dictionary: " (mapcar #'car choices) nil t))
+           (dict (cdr (assoc selected choices)))
+           (word (sdcv-prompt-input)))
+      (sdcv--popup-display word (list dict)))))
 
 
 (provide 'sdcv-pure)
