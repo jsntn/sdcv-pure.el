@@ -85,6 +85,43 @@ Example: `((\"~/.stardict/dic/stardict-lazyworm-ec-2.4.2\")
 (defvar sdcv-simple-dict-cache nil "Internal variable.")
 (defvar sdcv-multiple-dicts-cache nil "Internal variable.")
 
+(defvar sdcv--dict-file-info-table (make-hash-table :test 'equal)
+  "Tracks (dict-file-path size mtime) lists for cache validation.")
+
+(defun sdcv--resolve-dict-file (dict-path)
+  "Return the actual .dict or .dict.dz file in DICT-PATH,
+matching the logic in stardict-open-1."
+  (let ((dict (expand-file-name (concat (sdcv-get-dict-name dict-path) ".dict")
+                                dict-path))
+        (dict.dz (expand-file-name (concat (sdcv-get-dict-name dict-path)
+                                           ".dict.dz")
+                                   dict-path)))
+    (if (file-exists-p dict)
+        dict
+      dict.dz)))
+
+(defun sdcv--dict-stale-p (dict-path)
+  "Return non-nil if the dict file for DICT-PATH has changed on disk.
+Compares the .dict/.dict.dz file's size and modification time against
+the previously recorded values.  Returns t on first call so the
+initial info is recorded."
+  (let* ((dict-file (sdcv--resolve-dict-file dict-path))
+         (prev (gethash dict-path sdcv--dict-file-info-table))
+         (stats (and dict-file (file-attributes dict-file)))
+         (size (nth 7 stats))
+         (mtime (float-time (nth 5 stats))))
+    (if prev
+        (if (and (string= dict-file (nth 0 prev))
+                 (equal size (nth 1 prev))
+                 (= mtime (nth 2 prev)))
+            nil
+          (puthash dict-path (list dict-file size mtime)
+                   sdcv--dict-file-info-table)
+          t)
+      (puthash dict-path (list dict-file size mtime)
+               sdcv--dict-file-info-table)
+      t)))
+
 (defvar sdcv-history-file nil
   "File path to record lookup history, one word per line, newest first.
 When nil, no history is recorded.")
@@ -151,11 +188,20 @@ When nil, no history is recorded.")
       (message "No more dictionaries above"))))
 
 (defun sdcv-get-cache (dict-path dict-name)
-  "Retrieve or initialize the cache for DICT-PATH and DICT-NAME."
-  (or (cdr (assoc dict-path sdcv-multiple-dicts-cache))
+  "Retrieve or initialize the cache for DICT-PATH and DICT-NAME.
+
+Automatically invalidates stale cache entries when the underlying
+dict file on disk has changed (detected via size + mtime comparison)."
+  (let ((entry (assoc dict-path sdcv-multiple-dicts-cache)))
+    (if (and entry (not (sdcv--dict-stale-p dict-path)))
+        (cdr entry)
+      ;; Stale or first time — reopen
+      (when entry
+        (setq sdcv-multiple-dicts-cache
+              (delq entry sdcv-multiple-dicts-cache)))
       (let ((cache (stardict-open dict-path dict-name t)))
-	(push (cons dict-path cache) sdcv-multiple-dicts-cache)
-	cache)))
+        (push (cons dict-path cache) sdcv-multiple-dicts-cache)
+        cache))))
 
 (defmacro sdcv-search-detail (word dict cache)
   "Return WORD's definition with DICT, CACHE."
