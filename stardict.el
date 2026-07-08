@@ -99,9 +99,11 @@ The return is used as `DICT' argument in other functions."
             (/ (string-to-number (gethash "idxoffsetbits" ifo-ht)) 8)))
     (setq word-count
           (string-to-number (gethash "wordcount" ifo-ht)))
-    ;; get index
+    ;; get index (binary mode to preserve byte offsets on all platforms)
     (with-temp-buffer
-      (insert-file-contents idx)
+      (set-buffer-multibyte nil)
+      (let ((coding-system-for-read 'binary))
+        (insert-file-contents idx))
       (goto-char (point-min))
       (let ((rpt (make-progress-reporter "read index: " 0 (1- word-count))))
         (dotimes (i word-count)
@@ -109,7 +111,7 @@ The return is used as `DICT' argument in other functions."
           (let (p word offset size)
             (re-search-forward "\\([^\x00]+?\\)\x00" nil t)
             (setq p (point))
-            (setq word (decode-coding-string (encode-coding-string (match-string 1) 'no-conversion) 'utf-8))
+            (setq word (decode-coding-string (match-string 1) 'utf-8))
             (setq offset
                   (stardict-str2int
                    (buffer-substring-no-properties p
@@ -132,27 +134,60 @@ The return is used as `DICT' argument in other functions."
   (let ((info (gethash word (nth 1 dict)))
         (file (nth 2 dict))
         buffer
-        offset size begin end)
+        offset size)
     (when info
       (setq offset (car info))
       (setq size (cdr info))
-      ;; find any opened dict file
+      ;; find any opened dict file (unibyte buffer kept for speed)
       (dolist (buf (buffer-list))
         (when (equal file (buffer-file-name buf))
           (setq buffer buf)))
       (if buffer
           (with-current-buffer buffer
-            (buffer-substring-no-properties (byte-to-position (1+ offset))
-                                            (byte-to-position (+ 1 offset size))))
+            (decode-coding-string
+             (buffer-substring-no-properties (1+ offset) (+ 1 offset size))
+             'utf-8))
         (with-temp-buffer
-          (insert-file-contents (nth 2 dict) nil offset (+ offset size))
-          (buffer-string))))))
+          (set-buffer-multibyte nil)
+          (if (string-suffix-p ".dz" file)
+              ;; Compressed dict: read raw bytes then decompress with zlib
+              (progn
+                (insert-file-contents-literally file)
+                (zlib-decompress-region (point-min) (point-max)))
+            ;; Uncompressed dict: partial read with byte offsets
+            (let ((coding-system-for-read 'binary))
+              (insert-file-contents file nil offset (+ offset size))))
+          (if (string-suffix-p ".dz" file)
+              (decode-coding-string
+               (buffer-substring-no-properties (1+ offset) (+ 1 offset size))
+               'utf-8)
+            (decode-coding-string (buffer-string) 'utf-8)))))))
 
 (defun stardict-open-dict-file (dict)
   "Open dict file of `DICT' in Emacs to speed up word lookup.
 You should close the dict file yourself."
-  (with-current-buffer (find-file-noselect (nth 2 dict))
-    (setq buffer-read-only t)))
+  (let ((file (nth 2 dict)))
+    (if (string-suffix-p ".dz" file)
+        ;; For .dz files, decompress into a unibyte buffer
+        (let ((buf (generate-new-buffer (file-name-nondirectory file))))
+          (with-current-buffer buf
+            (set-buffer-multibyte nil)
+            (insert-file-contents-literally file)
+            (zlib-decompress-region (point-min) (point-max))
+            (setq buffer-file-name file)
+            (setq buffer-read-only t)
+            (set-buffer-modified-p nil))
+          buf)
+      ;; For plain .dict, read as binary unibyte
+      (let ((buf (generate-new-buffer (file-name-nondirectory file))))
+        (with-current-buffer buf
+          (set-buffer-multibyte nil)
+          (let ((coding-system-for-read 'binary))
+            (insert-file-contents file))
+          (setq buffer-file-name file)
+          (setq buffer-read-only t)
+          (set-buffer-modified-p nil))
+        buf))))
 
 ;; added by myself
 (defvar stardict-dir nil)
