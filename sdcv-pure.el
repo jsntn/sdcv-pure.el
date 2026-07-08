@@ -238,18 +238,24 @@ Searches for the .ifo file dynamically in the dictionary folder."
     bookname))
 
 (defun sdcv-find-dict-file (dict-path)
-  "Find the .dict.dz file in the DICT-PATH.
-Returns the full path of the .dict.dz file or nil if not found."
-  (let ((dict.dz-file (car (directory-files dict-path t "\\.dict.dz$"))))
-    (when (and dict.dz-file (file-exists-p dict.dz-file))
-      dict.dz-file)))
+  "Find the .dict or .dict.dz file in DICT-PATH.
+Prefers .dict.dz for backward compatibility.
+Returns the full path or nil if not found."
+  (let ((dict-file (car (directory-files dict-path t "\\.dict$")))
+        (dict.dz-file (car (directory-files dict-path t "\\.dict.dz$"))))
+    (cond (dict.dz-file dict.dz-file)
+          (dict-file dict-file)
+          (t nil))))
 
 (defun sdcv-get-dict-name (dict-path)
-  "Retrieve the dict-name based on the .dict.dz file in DICT-PATH."
-  (let ((dict.dz-file (sdcv-find-dict-file dict-path))
+  "Retrieve the dict-name from DICT-PATH.
+Looks for .dict.dz first, then .dict, stripping the suffix."
+  (let ((dict-file (sdcv-find-dict-file dict-path))
 	(dict-name nil))
-    (string-remove-suffix ".dict.dz"
-			  (file-name-nondirectory dict.dz-file))))
+    (when dict-file
+      (string-remove-suffix ".dict.dz"
+                    (string-remove-suffix ".dict"
+                                          (file-name-nondirectory dict-file))))))
 
 (defun sdcv-search-all (word)
   "Search WORD in all dictionaries and return concatenated results.
