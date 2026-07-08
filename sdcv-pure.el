@@ -137,8 +137,10 @@ When nil, no history is recorded.")
       (with-temp-file sdcv-history-file
         (insert (mapconcat #'identity words "\n") "\n")))))
 
-(defun sdcv-prompt-input ()
-  "Prompt input for translate."
+(defun sdcv-prompt-input (&optional no-record)
+  "Prompt input for translate.
+
+If NO-RECORD is non-nil, skip recording the word to history."
   (let* ((word (if mark-active
 		   (buffer-substring-no-properties (region-beginning)
 						   (region-end))
@@ -148,7 +150,8 @@ When nil, no history is recorded.")
 			    word))
     (when word
       (setq word (downcase word))
-      (sdcv-record-history word))
+      (unless no-record
+	(sdcv-record-history word)))
     word))
 
 (defun sdcv-quit-window ()
@@ -269,10 +272,11 @@ Returns nil if no results are found."
       (mapconcat #'identity results "\n\n\n")) ; combine with a blank lines in between
     ))
 
-(defun sdcv-complete-definition ()
-  "Show multiple dictionaries lookup in buffer."
-  (interactive)
-  (let* ((word (sdcv-prompt-input))
+(defun sdcv-complete-definition (&optional prefix)
+  "Show multiple dictionaries lookup in buffer.
+With universal-argument, skip recording the word to history."
+  (interactive "P")
+  (let* ((word (sdcv-prompt-input prefix))
 	 (defs (sdcv-search-all word)))
     (if defs
 	(let ((buf (get-buffer-create sdcv-result-buffer-name))
@@ -377,19 +381,21 @@ Return (display-name . definition) or nil."
                   (setq continue nil))))))
         (when tip (popup-delete tip))))))
 
-(defun sdcv-simple-definition ()
-  "Show dictionary lookup in popup.  C-j/C-k cycles through dictionaries."
-  (interactive)
-  (let* ((word (sdcv-prompt-input))
+(defun sdcv-simple-definition (&optional prefix)
+  "Show dictionary lookup in popup.  C-j/C-k cycles through dictionaries.
+With universal-argument, skip recording the word to history."
+  (interactive "P")
+  (let* ((word (sdcv-prompt-input prefix))
          (dicts (append (list sdcv-simple-dict)
                        (cl-remove-if
                         (lambda (d) (equal (nth 0 d) (nth 0 sdcv-simple-dict)))
                         sdcv-multiple-dicts))))
     (sdcv--popup-display word dicts)))
 
-(defun sdcv-select-definition ()
-  "Prompt to select a dictionary from `sdcv-multiple-dicts', then lookup in popup."
-  (interactive)
+(defun sdcv-select-definition (&optional prefix)
+  "Prompt to select a dictionary from `sdcv-multiple-dicts', then lookup in popup.
+With universal-argument, skip recording the word to history."
+  (interactive "P")
   (if (null sdcv-multiple-dicts)
       (message "sdcv-multiple-dicts is not defined.")
     (let* ((choices (mapcar (lambda (d)
@@ -399,7 +405,7 @@ Return (display-name . definition) or nil."
                            sdcv-multiple-dicts))
            (selected (completing-read "Dictionary: " (mapcar #'car choices) nil t))
            (dict (cdr (assoc selected choices)))
-           (word (sdcv-prompt-input)))
+           (word (sdcv-prompt-input prefix)))
       (sdcv--popup-display word (list dict)))))
 
 
